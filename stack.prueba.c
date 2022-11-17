@@ -11,10 +11,10 @@ static inline void printStack(Stack* const stack){
 }
 int main(){ 
     Stack* data = newStack();
-    int getVar;
+    int getVar = 0;
     for(int i = 0; i<5; i++){
         copy(int, i)
-        push(data, Copy_i);
+        pushStack(data, Copy_i);
     }
     {
         int a=33, b=66, c=99;
@@ -27,25 +27,21 @@ int main(){
         int list[] = {1115, 5111, 1515};
         size_t len = sizeof(list) / sizeof(int);
         transformList(int, list, len)
-        pushLista(data, void_list, len);
+        pushLista(data, nodes_list, len);
     }
     printStack(data);
-    
-    popV(int,data, getVar)
+
+    popValueIndex(int, data, 0, getVar)
     printf("Recover data is: %i\n", getVar);
     printStack(data);
 
-    popVI(int,data, getVar,1)
-    printf("Recover data is: %i\n", getVar);
-    printStack(data);
-    
-    getV(int, data, getVar, 1)
+    getValue(int, data, 2, getVar)
     printf("Recover data is: %i\n", getVar);
     printStack(data);
 
-    changeVI(int, data, 101, 1)//Cambia el 99 por 101
+    changeValue(int, data, 2, 69, sizeof(int))//Cambia el 99 por 101
     printStack(data);
 
-    destroy(&data);
+    destroyStack(&data); //Reinicio de la lista
     return 0;
 }

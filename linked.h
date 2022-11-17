@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <stdarg.h>
 
 //Recorre la lista
@@ -23,75 +23,82 @@
     }
 */
 //Caso de uso: -Para una funcion generadora de elementos
-#define copy(T, val)    void* Copy_##val = malloc(sizeof(val));\
-                        *((T*)Copy_##val) = val;
-#define popV(T, stack, var) {                           \
-    void* aux = popP(stack);                            \
-    if(aux == NULL){                                    \
-        printf("Theres is no data left on the stack");  \
-    }else{                                              \
-        var = *((T*)aux);                               \
-        free(aux);                                      \
-    }                                                   \
+#define copy(T, val)    node* Copy_##val;{                              \
+    T* aux_Ptr = malloc(sizeof(T));                                     \
+    *aux_Ptr = val;                                                     \
+    Copy_##val = wrap(aux_Ptr, sizeof(T));                              \
+}                                                                   
+#define dynamicCopy(T, val) T* Dynamic_##val = malloc(sizeof(T));   \
+                            *Dynamic_##val = val;
+
+#define popValueIndex(T, stack, index, var) {                       \
+    node* aux = popStackNodeAtIndex(stack, index);                  \
+    if(aux != NULL){                                                \
+        var = *(T*)(aux->cont);                                     \
+        free(aux->cont);                                            \
+        free(aux);                                                  \
+    }                                                               \
 }
-#define popVI(T, stack, var, index) {                   \
-    void* aux = popPI(stack, index);                    \
-    if(aux == NULL){                                    \
-        printf("Theres is no data left on the stack");  \
-    }else{                                              \
-        var = *((T*)aux);                               \
-        free(aux);                                      \
-    }                                                   \
+
+#define getValue(T, stack, index, var) {                            \
+    node* aux = getStackNodeAtIndex(stack, index);                  \
+    if(aux != NULL)var = *(T*)(aux->cont);                         \
 }
-#define getV(T, stack, var, index) {                    \
-    void* aux = getP(stack, index);                     \
-    if(aux == NULL){                                    \
-        printf("Index Error");                          \
-    }else{                                              \
-        var = *((T*)aux);                               \
-    }                                                   \
+#define changeValue(T, stack, index, newValue, typeSiz) {           \
+    node* aux = getStackNodeAtIndex(stack, index);                  \
+    if(aux != NULL){                                                \
+        *(T*)(aux->cont) = newValue;                                \
+        aux->typeSize = typeSiz;                                    \
+    }                                                               \
 }
-#define changeVI(T, stack, newValue, index) {           \
-    T* aux = getP(stack, index);                        \
-    *aux = newValue;                                    \
+//Convierte una lista de valores a una lista de nodos validos con memoria dinamica
+#define transformList(T, originList, lenght) node* nodes_##originList[lenght];{\
+    T* aux;                                                         \
+    for(size_t i = 0; i<lenght; i++){                               \
+        aux = malloc(sizeof(T));                                    \
+        *aux = originList[i];                                       \
+        nodes_##originList[i] = wrap(aux, sizeof(T));               \
+    }                                                               \
 }
-#define transformList(T, originList, lenght) void* void_##originList[lenght];\
-{                                                       \
-    for(size_t i = 0; i<lenght; i++){                   \
-        void_##originList[i] = malloc(sizeof(T));       \
-        *(T*)void_##originList[i] = originList[i];      \
-    }                                                   \
+#define removeStack(T, stack, index){                               \
+    node *aux = popStackNodeAtIndex(stack,index);                   \
+    free(aux->cont);                                                \
+    free(aux);                                                      \
 }
 
 typedef struct node{
+    size_t          typeSize;
     void*           cont;
     struct node*    next;
 }node;
 typedef struct{
-    size_t  size;
+    size_t size;
     node*   lista;
 }Stack;
 
 Stack* newStack();
-static node* wrap(void* const);
+node* wrap(void* const, const size_t);
+void* unwrap(node* const);
 //Busquedas
-size_t search(Stack* const, void* const);
-size_t searchValue(Stack* const, void* const, const size_t);
+size_t search(const Stack* const, const void* const);
+size_t searchValue(const Stack* const, const void* const, const size_t);
 
 //More complex
-size_t findByFunc(Stack* const stack, int (*func)(void*));
-void map(Stack* const stack, void* (*func)(void*));
-void forEach(Stack* const stack, void(*func)(void*));
+size_t findByFunc(const Stack* const, int (*)(void*));
+void forEach(const Stack* const , void(*)(void*));
 
 //Adition functions based on pointers to elements
-void push(Stack* const, void* const);
+void pushNode(node** const, node* const);
+void pushStack(Stack* const, node* const);
 void pushArguments(Stack* const, ...);
-void pushLista(Stack* const, void* const[], const size_t);
+void pushLista(Stack* const, node* const[], const size_t);
 
-//Substraction  functions returning pointers
-void* popP(Stack* const);
-void* popPI(Stack* const, const size_t);
-void* getP(Stack*, const size_t);
+//Substraction  functions returning node pointers
+node* popNode(node** const);
+node* popNextNode(node** const);
+node* popStackNode(Stack* const);
+node* popStackNodeAtIndex(Stack* const, const size_t);
+node* getStackNodeAtIndex(const Stack* const, const size_t);
 
-void clean(Stack* const stack);
-void destroy(Stack** const stack);
+void clearStack(Stack* const);
+void destroyStack(Stack**);

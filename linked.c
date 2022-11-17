@@ -1,43 +1,51 @@
 #include "linked.h"
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #define iterate(stack)  for(node* aux = stack->lista; aux != NULL; aux = aux->next)
 Stack* newStack(){
-    Stack* stack = malloc(sizeof(Stack));
-    *stack = (Stack){.size = 0, .lista = NULL};
-    return stack;
+    Stack* created = malloc(sizeof(Stack));
+    *created = (Stack){.size = 0, .lista = NULL};
+    return created;
 }
 //Encapsula el valor mandado dentro de un nodo
-static node* wrap(void* const val){
+node* wrap(void* const val, const size_t typeSize){
     node* newNode = malloc(sizeof(node));
     *newNode = (node){
+        .typeSize = typeSize,
         .cont = val,
         .next = NULL
     };
     return newNode;
 }
+void* unwrap(node* const Node){
+    void* aux = Node->cont;
+    free(Node);
+    return aux;
+}
 //Retorna el indice en el cual se encuentra un puntero que apunta a la misma direccion de memoria del valor
-size_t search(Stack* const stack, void* const valor){
-    unsigned int index;
+size_t search(const Stack* const stack, const void* const valor){
+    unsigned int index = 0;
     iterate(stack){
         if (aux->cont == valor) return index;
         index++;
     }
-    return stack->size+1;
+    return stack->size + 1;
 }
 //A diferencia del search simple este hace una revision de bytes en lugar de direccion de memoria
-size_t searchValue(Stack* const stack, void* const valor, const size_t typeLen){
-    char* buscado = valor;
+size_t searchValue(const Stack* const stack, const void* const valor, const size_t typeLen){
+    const char* buscado = valor;
     char* actualValue;
-    unsigned char found = 0;
+    uint8_t found = 0;
     size_t index = 0;
     iterate(stack){
+        if(aux->typeSize < typeLen || aux->typeSize > typeLen)continue; //Chequeo para evitar acceso a memoria que no nos pertenece
         actualValue = aux->cont;
         found = 1;
-        for (unsigned char i = 0; i < typeLen; i++){
-            if(buscado[i] != actualValue[i]){ //Dangerous for a stack with contents of diferent types
+        for (uint8_t i = 0; i < typeLen; i++){
+            if(buscado[i] != actualValue[i]){
                found = 0;
                break; 
             }
@@ -45,91 +53,89 @@ size_t searchValue(Stack* const stack, void* const valor, const size_t typeLen){
         if(found)return index;
         index++;
     }
-    return stack->size+1;
+    return stack->size + 1;
 }
 //Retorna el indice de la lista en el que se cumpla que el valor en el indice pasado a la funcion retorne True
-size_t findByFunc(Stack* const stack, int (*func)(void*)){
+size_t findByFunc(const Stack* const stack, int (*func)(void*)){
     size_t indice = 0;
     iterate(stack){
         if(func(aux->cont))return indice;
         indice++;
     }
-    return stack->size+1;
-}
-//Cambia el contenido de cada nodo al resultado de enviar su contenido a la funcion obtenida
-void map(Stack* const stack, void* (*func)(void*)){
-    iterate(stack)aux->cont = func(aux->cont);
+    return stack->size + 1;
 }
 //Pasa cada valor en el stack a la funcion obtenida
-void forEach(Stack* const stack, void(*func)(void*)){
+void forEach(const Stack* const stack, void (*func)(void*)){
     iterate(stack)func(aux->cont);
 }
-//Encapsula el nuevo elemento en un nodo y lo añade al stack
-void push(Stack* const stack, void* const contenido){
-    node* newNode = wrap(contenido);
-    newNode->next = stack->lista;
-    stack->lista = newNode;
+void pushNode(node** const origin, node* const contenido){
+    contenido->next = (*origin);
+    *origin = contenido;
+}
+void pushStack(Stack* const stack, node* const contenido){
+    pushNode(&(stack->lista), contenido);
     stack->size++;
 }
-//Agrega los argumentosrecividos hasta encontrar un puntero a NULL
+//Agrega los nodos recibidos como argumentos hasta encontrar NULL
 void pushArguments(Stack* const stack, ...){
     va_list ap;
     va_start(ap, stack);
-    for(void* aux = va_arg(ap, void*); aux != NULL; aux = va_arg(ap, void*))push(stack, aux);
+    for(node* aux = va_arg(ap, node*); aux != NULL; aux = va_arg(ap, node*))pushStack(stack, aux);
     va_end(ap);
 }
 //Agrega los valores en el orden en que se encuentra en la lista
 //Hint: El tamaño de una lista se puede sacar con (sizeof(Lista) / sizeof(typeOfLista)) solo si se aplica donde se creo no cuando es pasada a una funcion
-void pushLista(Stack* const stack, void* const valores[], const size_t sizeOfValores){
-    if(sizeOfValores == 0)return;
-    for(size_t i = 0; i < sizeOfValores; i++)push(stack, valores[i]);
+void pushLista(Stack* const stack, node* const valores[], const size_t sizeOfList){
+    if(sizeOfList == 0)return;
+    for(size_t i = 0; i < sizeOfList; i++)pushStack(stack, valores[i]);
+}
+node* popNode(node** const origin){
+    node* aux = *origin;
+    *origin = (*origin)->next;
+    aux->next = NULL;
+    return aux;
+}
+node* popNextNode(node** const origin){
+    node* aux = (*origin)->next;
+    (*origin)->next = (*origin)->next->next;
+    aux->next = NULL;
+    return aux;
 }
 //Extra el ultimo contenido del ultimo nodo añadido al stack
 //Recordatorio: Liberar la memoria del puntero retornado
-void* popP(Stack* const stack){
+node* popStackNode(Stack* const stack){
     if(stack->lista == NULL)return NULL;
-    void* contenido = stack->lista->cont;
-    node* temp = stack->lista->next;
-    free(stack->lista);
-    stack->lista = temp;
-    stack->size--;
-    return contenido;
+    stack->size-=1;
+    return popNode(&(stack->lista));
 }
 //Extrae el contenido del nodo en el index
 //Recordatorio: Liberar la memoria del puntero retornado
-void* popPI(Stack* const stack, const size_t index){
+node* popStackNodeAtIndex(Stack* const stack, const size_t index){
     if(index > stack->size)return NULL;
-    if(index < 1)return popP(stack);
+    if(index < 1)return popStackNode(stack);
     size_t i = 1;
-    void* contenido;
     iterate(stack){
         if(i == index){
-            contenido = aux->next->cont;
-            node* temp = aux->next->next;
-            free(aux->next);
-            aux->next = temp;
-            stack->size--;
-            return contenido;
+            stack->size-=1;
+            return popNextNode(&(aux));
         }
         i++;
     }
-    stack->size--;
-    return contenido;
+    return NULL;
 }
 //Retorna el contenido del nodo en el index sin eliminarlo
 //No liberar el puntero enviado
-void* getP(Stack* stack, const size_t index){
+node* getStackNodeAtIndex(const Stack* const stack, const size_t index){
     if(index > stack->size)return NULL;
-    size_t i = 0;
-    void* contenido;
+    unsigned int i = 0;
     iterate(stack){
-        if(i == index)contenido = aux->cont;
+        if(i == index)return aux;
         i++;
     }
-    return contenido;
+    return NULL;
 }
 //Elimina todos los elementos del stack
-void clean(Stack* const stack){
+void clearStack(Stack* const stack){
     node* temp;
     for(node* aux = stack->lista;aux != NULL;aux = temp){
         temp = aux->next;
@@ -138,8 +144,8 @@ void clean(Stack* const stack){
     }
     stack->size = 0;
 }
-void destroy(Stack** const stack){
-    clean(*stack);
+void destroyStack(Stack** stack){
+    clearStack(*stack);
     free(*stack);
     *stack = NULL;
 }
